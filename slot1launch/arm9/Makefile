@@ -26,13 +26,14 @@ DATA		:=	../data
 # options for code generation
 #---------------------------------------------------------------------------------
 ARCH	:=	-mthumb -mthumb-interwork
+LAUNCH_TRACE ?= 0
 
 CFLAGS	:=	-g -Wall -O2\
  		-march=armv5te -mtune=arm946e-s -fomit-frame-pointer\
 		-ffast-math \
 		$(ARCH)
 
-CFLAGS	+=	$(INCLUDE) -DARM9 -DSTANDALONE -D_NO_MAIN_ALL -DNP3D_DIAGNOSTIC=$(DIAGNOSTIC)
+CFLAGS	+=	$(INCLUDE) -DARM9 -DSTANDALONE -D_NO_MAIN_ALL -DNP3D_DIAGNOSTIC=$(DIAGNOSTIC) -DNP3D_LAUNCH_TRACE=$(LAUNCH_TRACE)
 CXXFLAGS	:= $(CFLAGS) -fno-exceptions -std=gnu++17
 
 ASFLAGS	:=	-g $(ARCH) $(INCLUDE)

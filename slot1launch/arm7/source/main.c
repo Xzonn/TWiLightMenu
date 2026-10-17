@@ -62,6 +62,10 @@ int main(void) {
 	}
 	
 	while (1) {
+		if (fifoCheckValue32(FIFO_USER_08)) {
+			fifoGetValue32(FIFO_USER_08);
+			fifoSendValue32(FIFO_USER_08, TWL_ResetSlot1());
+		}
 		swiWaitForVBlank();
 	}
 }
