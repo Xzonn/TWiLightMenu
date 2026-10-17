@@ -194,8 +194,7 @@ tNDSHeader* ndsHeader = (tNDSHeader*)NDS_HEAD;
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // Used for debugging purposes
-/* Disabled for now. Re-enable to debug problems
-static void errorOutput (u32 code) {
+static void __attribute__((noreturn)) errorOutput (u32 code) {
 	// Wait until the ARM9 is ready
 	while (arm9_stateFlag != ARM9_READY);
 	// Set the error code, then tell ARM9 to display it
@@ -205,7 +204,6 @@ static void errorOutput (u32 code) {
 	// Stop
 	while (1);
 }
-*/
 
 static void debugOutput (u32 code) {
 	// Wait until the ARM9 is ready
@@ -324,6 +322,7 @@ void arm7_resetMemory (void)
 	
 	// Load FW header 
 	arm7_readFirmware((u32)0x000000, (u8*)0x027FF830, 0x20);
+	arm7_readFirmware(0x36, (u8*)0x027FFCF4, 8);
 }
 
 static void NDSTouchscreenMode(void) {
@@ -740,7 +739,7 @@ void arm7_main (void) {
 	// Load the NDS file
 	errorCode = arm7_loadBinary();
 	if (errorCode) {
-		debugOutput(errorCode);
+		errorOutput(errorCode);
 	}
 	
 	if (my_isDSiMode()) {

@@ -420,9 +420,31 @@ int cardInit (sNDSHeaderExt* ndsHeader, u32* chipID)
 	return ERR_NONE;
 }
 
+#if NP3D_DIAGNOSTIC
+bool cardDiagnosticReads(u32* engine) {
+	bool (*recordRead)(u32, const void*) = (void*)engine[9];
+	const u32 addresses[] = {0x1000, 0x1200, 0x1400, 0x8000, 0x8200, 0x8400};
+	u32 buffer[CARD_DATA_BLOCK_SIZE / sizeof(u32)];
+	for (unsigned int index = 0; index < sizeof(addresses) / sizeof(addresses[0]); index++) {
+		if (!recordRead(addresses[index], NULL)) {
+			return false;
+		}
+		cardParamCommand(CARD_CMD_DATA_READ, addresses[index],
+			portFlags | CARD_ACTIVATE | CARD_nRESET | CARD_BLK_SIZE(1),
+			buffer, CARD_DATA_BLOCK_SIZE / sizeof(u32));
+		if (!recordRead(addresses[index], buffer)) {
+			return false;
+		}
+	}
+	return true;
+}
+
+#endif
+
 void cardRead (u32 src, u32* dest, size_t size)
 {
 	sNDSHeaderExt* ndsHeader = (sNDSHeaderExt*)headerData;
+	u32 readBuffer[CARD_DATA_BLOCK_SIZE/sizeof(u32)];
 
 	size_t readSize;
 
@@ -457,7 +479,8 @@ void cardRead (u32 src, u32* dest, size_t size)
 		readSize = size < CARD_DATA_BLOCK_SIZE ? size : CARD_DATA_BLOCK_SIZE;
 		cardParamCommand (CARD_CMD_DATA_READ, src,
 			portFlags | CARD_ACTIVATE | CARD_nRESET | CARD_BLK_SIZE(1),
-			dest, readSize);
+			readBuffer, CARD_DATA_BLOCK_SIZE/sizeof(u32));
+		tonccpy(dest, readBuffer, readSize);
 		src += readSize;
 		dest += readSize/sizeof(*dest);
 		size -= readSize;

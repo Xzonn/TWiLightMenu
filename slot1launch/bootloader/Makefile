@@ -17,6 +17,9 @@ TARGET		:=	load
 BUILD		:=	build
 DSIMODE_FULL_SOURCES := source/twltool source/polarssl source/gm9i
 SOURCES		:=	source $(UNIVERSAL)/source/tonccpy $(DSIMODE_FULL_SOURCES)
+ifeq ($(DIAGNOSTIC),1)
+SOURCES		+=	../../../../source/diagnostic
+endif
 INCLUDES		:=	build source $(UNIVERSAL)/include $(DSIMODE_FULL_SOURCES)
 DATA		:=	../data
 SPECS		:=  specs
@@ -31,7 +34,7 @@ CFLAGS	:=	-g -Wall -O2\
 			-ffast-math \
 			$(ARCH)
 
-CFLAGS	+=	$(INCLUDE) -DARM7 -std=gnu99
+CFLAGS	+=	$(INCLUDE) -DARM7 -std=gnu99 -DNP3D_DIAGNOSTIC=$(DIAGNOSTIC)
 
 ASFLAGS	:=	-g $(ARCH) $(INCLUDE)
 LDFLAGS	=	-nostartfiles -T $(TOPDIR)/load.ld -g $(ARCH) -Wl,--nmagic -Wl,-Map,$(TARGET).map
@@ -65,6 +68,7 @@ export AR		:=	$(PREFIX)ar
 export OBJCOPY	:=	$(PREFIX)objcopy
  
 CFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
+CFILES		:=	$(filter-out trace.c,$(CFILES))
 CPPFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
 SFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
 BINFILES	:=	

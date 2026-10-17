@@ -24,3 +24,6 @@ arm7_hookGame
 Adds a hook in the game's ARM7 binary to our own code
 -------------------------------------------------------------------------*/
 int hookNdsRetail (const tNDSHeader* ndsHeader, u32* cardEngineLocation);
+#if NP3D_DIAGNOSTIC
+int hookNdsDiagnostic(const tNDSHeader* ndsHeader, u32* engine);
+#endif

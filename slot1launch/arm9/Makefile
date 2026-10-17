@@ -18,8 +18,8 @@ include $(DEVKITARM)/ds_rules
 UNIVERSAL	:=	../../universal
 TARGET		:=	slot1launch
 BUILD		:=	build
-SOURCES		:=	source $(UNIVERSAL)/source/common $(UNIVERSAL)/source/tonccpy
-INCLUDES	:=	include $(UNIVERSAL)/include
+SOURCES		:=	source $(UNIVERSAL)/source/common $(UNIVERSAL)/source/tonccpy ../../../../source/arm9
+INCLUDES	:=	include source $(UNIVERSAL)/include
 DATA		:=	../data
 
 #---------------------------------------------------------------------------------
@@ -32,7 +32,7 @@ CFLAGS	:=	-g -Wall -O2\
 		-ffast-math \
 		$(ARCH)
 
-CFLAGS	+=	$(INCLUDE) -DARM9 -DSTANDALONE -D_NO_MAIN_ALL
+CFLAGS	+=	$(INCLUDE) -DARM9 -DSTANDALONE -D_NO_MAIN_ALL -DNP3D_DIAGNOSTIC=$(DIAGNOSTIC)
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++17
 
 ASFLAGS	:=	-g $(ARCH) $(INCLUDE)
@@ -65,6 +65,7 @@ export VPATH	:=	$(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) \
 
 CFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
 CPPFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
+CPPFILES	:=	$(filter-out main.cpp,$(CPPFILES))
 SFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
 BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.*)))
 

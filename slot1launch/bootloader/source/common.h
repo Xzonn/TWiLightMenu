@@ -42,9 +42,13 @@
 #define ERR_SEC_OTHR 0x14
 #define ERR_LOGO_CRC 0x15
 #define ERR_HEAD_CRC 0x16
+#define ERR_FIRMWARE_SETTINGS 0x17
 // hookARM7Binary error codes:
 #define ERR_NOCHEAT 0x21
 #define ERR_HOOK 0x22
+#if NP3D_DIAGNOSTIC
+#define ERR_DIAGNOSTIC 0x23
+#endif
 //};
 
 //ARM9_STATE

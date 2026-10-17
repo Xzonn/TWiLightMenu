@@ -34,6 +34,9 @@
 int cardInit (sNDSHeaderExt* ndsHeader, u32* chipID);
 
 void cardRead (u32 src, u32* dest, size_t size);
+#if NP3D_DIAGNOSTIC
+bool cardDiagnosticReads(u32* engine);
+#endif
 
 #endif // READ_CARD_H
 

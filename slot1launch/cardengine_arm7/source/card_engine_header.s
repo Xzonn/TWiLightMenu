@@ -32,6 +32,29 @@ gameSoftReset:
 	.word	0x00000000
 cheat_data_offset:    
 	.word	cheat_data
+#if NP3D_DIAGNOSTIC
+	.word traceInit
+	.word 0
+	.word traceIrqEntry
+traceIrqReturn:
+	.word 0
+	.word traceBootRead
+	.word traceBootComplete
+
+.global traceIrqReturn
+
+traceIrqEntry:
+	stmdb sp!, {r0-r12, lr}
+	mov r0, sp
+	ldr sp, =traceIrqStackEnd
+	ldr r3, =traceIrq
+	bl _blx_r3_stub
+	mov sp, r0
+	ldmia sp!, {r0-r12, lr}
+	stmdb sp!, {lr}
+	mov ip, #0x04000000
+	ldr pc, traceIrqReturn
+#endif
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 

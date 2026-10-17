@@ -270,6 +270,7 @@ int cardInit (tNDSHeader* ndsHeader, u32* chipID)
 
 void cardRead (u32 src, u32* dest, size_t size)
 {
+	u32 readBuffer[CARD_DATA_BLOCK_SIZE/sizeof(u32)];
 	size_t readSize;
 
 	if (src < CARD_SECURE_AREA_OFFSET) {
@@ -287,7 +288,8 @@ void cardRead (u32 src, u32* dest, size_t size)
 		readSize = size < CARD_DATA_BLOCK_SIZE ? size : CARD_DATA_BLOCK_SIZE;
 		cardParamCommand (CARD_CMD_DATA_READ, src,
 			(portFlags &~CARD_BLK_SIZE(7)) | CARD_ACTIVATE | CARD_nRESET | CARD_BLK_SIZE(1),
-			dest, readSize);
+			readBuffer, CARD_DATA_BLOCK_SIZE/sizeof(u32));
+		memcpy(dest, readBuffer, readSize);
 		src += readSize;
 		dest += readSize/sizeof(*dest);
 		size -= readSize;

@@ -11,6 +11,7 @@ include $(DEVKITARM)/ds_rules
 
 export TARGET		:=	slot1launch
 export TOPDIR		:=	$(CURDIR)
+export DIAGNOSTIC ?= 0
 
 export VERSION_MAJOR	:= 1
 export VERSION_MINOR	:= 99
@@ -31,8 +32,8 @@ dist:	all
 
 $(TARGET).nds:	$(TARGET).arm7 $(TARGET).arm9
 	ndstool	-c $(TARGET).nds -7 $(TARGET).arm7.elf -9 $(TARGET).arm9.elf \
-			-b $(CURDIR)/icon.bmp "Slot-1 Launcher;TWiLight Menu++;Apache Thunder & Rocket Robz" \
-			-g TWL1 01 "TWLMENUPP-S1" -z 80040000 -u 00030004
+			-b $(CURDIR)/icon.bmp "NitroPatcher3DS;Game Card Launcher;Xzonn" \
+			-g NP3D 01 "NITROPATCHER" -z 80040000 -u 00030004
 
 $(TARGET).arm7	: arm7/$(TARGET).elf
 	cp arm7/$(TARGET).elf $(TARGET).arm7.elf

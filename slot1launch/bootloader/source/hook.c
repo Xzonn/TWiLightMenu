@@ -21,6 +21,9 @@
 
 #include "hook.h"
 #include "common.h"
+#if NP3D_DIAGNOSTIC
+#include "find.h"
+#endif
 
 extern unsigned long language;
 extern bool gameSoftReset;
@@ -44,6 +47,25 @@ static const u32 handlerEndSig[4] = {
 };
 
 static const int MAX_HANDLER_SIZE = 50;
+
+#if NP3D_DIAGNOSTIC
+int hookNdsDiagnostic(const tNDSHeader* ndsHeader, u32* engine) {
+	u32* start = findOffset((u32*)ndsHeader->arm7destination,
+		ndsHeader->arm7binarySize, handlerStartSig, 5);
+	if (!start) {
+		return ERR_HOOK;
+	}
+	u32* end = findOffset(start, MAX_HANDLER_SIZE * sizeof(u32), handlerEndSig, 4);
+	if (!end) {
+		return ERR_HOOK;
+	}
+	engine[8] = end[5] - (u32)((u8*)(end + 6) - (u8*)start) + 8;
+	start[0] = 0xe51ff004;
+	start[1] = engine[7];
+	return ERR_NONE;
+}
+
+#endif
 
 static u32* hookInterruptHandler (u32* addr, size_t size) {
 	u32* end = addr + size/sizeof(u32);

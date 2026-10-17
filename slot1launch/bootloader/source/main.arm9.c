@@ -62,6 +62,9 @@ volatile u32 arm9_BLANK_RAM = 0;
 External functions
 --------------------------------------------------------------------------*/
 extern void arm9_clearCache (void);
+#if NP3D_DIAGNOSTIC
+extern void traceArm9Prepare(void);
+#endif
 extern void arm9_write_to_scfg_clk(uint16_t);
 extern __attribute__((noreturn)) void arm9_actual_jump(void* fn);
 
@@ -358,6 +361,11 @@ void __attribute__((target("arm"))) arm9_main (void) {
 
 	REG_IE = 0;
 	REG_IF = ~0;
+#if NP3D_DIAGNOSTIC
+	if (arm9_runCardEngine) {
+		traceArm9Prepare();
+	}
+#endif
 	arm9_actual_jump((void*)ndsHeader->arm9executeAddress);
 }
 

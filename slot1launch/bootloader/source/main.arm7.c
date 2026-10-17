@@ -96,7 +96,9 @@ bool gameSoftReset = false;
 extern void arm7_clearmem (void* loc, size_t len);
 extern __attribute__((noreturn)) void arm7_actual_jump(void* fn);
 
+#if !NP3D_DIAGNOSTIC
 static const u32 cheatDataEndSignature[2] = {0xCF000000, 0x00000000};
+#endif
 
 // Module params
 static const u32 moduleParamsSignature[2] = {0xDEC00621, 0x2106C0DE};
@@ -217,8 +219,7 @@ static void patchSleepInputWrite(const tNDSHeader* ndsHeader, const module_param
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // Used for debugging purposes
-/* Disabled for now. Re-enable to debug problems
-static void errorOutput (u32 code) {
+static void __attribute__((noreturn)) errorOutput (u32 code) {
 	// Wait until the ARM9 is ready
 	while (arm9_stateFlag != ARM9_READY);
 	// Set the error code, then tell ARM9 to display it
@@ -228,7 +229,6 @@ static void errorOutput (u32 code) {
 	// Stop
 	while (1);
 }
-*/
 
 static void debugOutput (u32 code) {
 	// Wait until the ARM9 is ready
@@ -251,7 +251,7 @@ static void my_readUserSettings(tNDSHeader* ndsHeader) {
 	short slot1count, slot2count; //u8
 	short slot1CRC, slot2CRC;
 
-	u32 userSettingsBase;
+	u16 userSettingsBase;
 
 	// Get settings location
 	readFirmware(0x20, &userSettingsBase, 2);
@@ -273,9 +273,9 @@ static void my_readUserSettings(tNDSHeader* ndsHeader) {
 	short calc1CRC = swiCRC16(0xFFFF, &slot1, sizeof(PERSONAL_DATA));
 	short calc2CRC = swiCRC16(0xFFFF, &slot2, sizeof(PERSONAL_DATA));
 
-	// Bail out if neither slot is valid
+	// Stop if neither slot is valid
 	if (calc1CRC != slot1CRC && calc2CRC != slot2CRC) {
-		return;
+		errorOutput(ERR_FIRMWARE_SETTINGS);
 	}
 
 	// If both slots are valid pick the most recent
@@ -763,7 +763,7 @@ int arm7_loadBinary (const tDSiHeader* dsiHeaderTemp) {
 	}
 
 	// Fix Pokemon games needing header data.
-	tonccpy((u32*)NDS_HEADER_POKEMON, (u32*)NDS_HEADER, 0x170);
+	tonccpy((u32*)NDS_HEADER_POKEMON, dsiHeaderTemp, 0x170);
 
 	char* romTid = (char*)NDS_HEADER_POKEMON+0xC;
 	if (
@@ -863,6 +863,8 @@ void fixDSBrowser(void) {
 
 
 static void setMemoryAddress(const tNDSHeader* ndsHeader) {
+	readFirmware(0x36, (u8*)(isSdk5(moduleParams) ? 0x02FFFCF4 : 0x027FFCF4), 8);
+
 	if (ROMsupportsDsiMode(ndsHeader)) {
 	//	u8* deviceListAddr = (u8*)((u8*)0x02FFE1D4);
 	//	tonccpy(deviceListAddr, deviceList_bin, deviceList_bin_len);
@@ -958,7 +960,7 @@ void arm7_main (void) {
 	// Load the NDS file
 	errorCode = arm7_loadBinary(dsiHeaderTemp);
 	if (errorCode) {
-		debugOutput(errorCode);
+		errorOutput(errorCode);
 	}
 
 	if (my_isDSiMode()) {
@@ -1041,6 +1043,7 @@ void arm7_main (void) {
 	bool isDSBrowser = (memcmp(ndsHeader->gameCode, "UBRP", 4) == 0);
 
 	arm9_extendedMemory = (dsiModeConfirmed || isDSBrowser);
+	setMemoryAddress(ndsHeader);
 	if (!arm9_extendedMemory) {
 		tonccpy((u32*)0x023FF000, (u32*)(isSdk5(moduleParams) ? 0x02FFF000 : 0x027FF000), 0x1000);
 	}
@@ -1110,13 +1113,28 @@ void arm7_main (void) {
 
 		const u32 cardengine_arm7_bin_size = *(u32*)0x02800000;
 		copyLoop ((u32*)ENGINE_LOCATION_ARM7, (u32*)0x02800004, cardengine_arm7_bin_size);
+#if NP3D_DIAGNOSTIC
+		u32* engine = (u32*)ENGINE_LOCATION_ARM7;
+		bool (*initDiagnostic)(u32, const void*) = (void*)engine[5];
+		bool (*completeDiagnostic)(u32) = (void*)engine[10];
+		if (!initDiagnostic(engine[6], ndsHeader) || !cardDiagnosticReads(engine)) {
+			errorOutput(ERR_DIAGNOSTIC);
+		}
+		errorCode = hookNdsDiagnostic(ndsHeader, engine);
+#else
 		errorCode = hookNdsRetail(ndsHeader, (u32*)ENGINE_LOCATION_ARM7);
+#endif
 		if (errorCode == ERR_NONE) {
 			nocashMessage("card hook Sucessfull");
 		} else {
 			nocashMessage("error during card hook");
-			debugOutput(errorCode);
+			errorOutput(errorCode);
 		}
+#if NP3D_DIAGNOSTIC
+		if (!completeDiagnostic(engine[8] - 8)) {
+			errorOutput(ERR_DIAGNOSTIC);
+		}
+#else
 		if (*(u32*)(0x023F0000) != 0xCF000000) {
 			u32* cheatDataOffset = findOffset(
 				(u32*)ENGINE_LOCATION_ARM7, cardengine_arm7_bin_size,
@@ -1126,6 +1144,7 @@ void arm7_main (void) {
 				tonccpy (cheatDataOffset, (u32*)0x023F0000, 0x8000);	// Copy cheat data
 			}
 		}
+#endif
 	}
 	toncset ((void*)0x023F0000, 0, 0x8000);		// Clear cheat data from main memory
 
@@ -1156,8 +1175,6 @@ void arm7_main (void) {
 
 	arm9_stateFlag = ARM9_SETSCFG;
 	while (arm9_stateFlag != ARM9_READY);
-
-	setMemoryAddress(ndsHeader);
 
 	arm7_startBinary();
 }

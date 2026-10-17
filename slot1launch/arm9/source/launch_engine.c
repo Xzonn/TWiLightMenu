@@ -47,6 +47,9 @@ extern bool TWLTOUCH;
 extern bool soundFreq;
 extern bool sleepMode;
 extern bool runCardEngine;
+#if NP3D_DIAGNOSTIC
+extern unsigned long diagnosticCluster;
+#endif
 extern bool EnableSD;
 extern int language;
 
@@ -96,6 +99,9 @@ void runLaunchEngine (bool altBootloader, bool isDSBrowser)
 	} else if (runCardEngine) {
 		*(u32*)0x02800000 = cardengine_arm7_bin_size;
 		tonccpy((u32*)0x02800004, (u32*)cardengine_arm7_bin, cardengine_arm7_bin_size);
+#if NP3D_DIAGNOSTIC
+		((u32*)0x02800004)[6] = diagnosticCluster;
+#endif
 	}
 
 	// Give the VRAM to the ARM7

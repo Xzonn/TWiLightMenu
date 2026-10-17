@@ -21,6 +21,11 @@ BUILD		:=	build
 SOURCES		:=	source
 DATA		:=	data
 INCLUDES	:=	include
+ifeq ($(DIAGNOSTIC),1)
+BOOTSTRAP_COMMON := ../../../nds-bootstrap/retail/common
+SOURCES		+=	../../../../source/diagnostic $(BOOTSTRAP_COMMON)/source $(BOOTSTRAP_COMMON)/source_general
+INCLUDES	+=	$(BOOTSTRAP_COMMON)/include $(BOOTSTRAP_COMMON)/include_fat
+endif
 
 
 #---------------------------------------------------------------------------------
@@ -34,11 +39,11 @@ CFLAGS	:=	-g -Wall -O2\
 			$(ARCH)
 
 # ADD -DDEBUG here for logging/debug
-CFLAGS	+=	$(INCLUDE) -DARM7 -std=gnu99
+CFLAGS	+=	$(INCLUDE) -DARM7 -std=gnu99 -DNP3D_DIAGNOSTIC=$(DIAGNOSTIC)
 
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions
 
-ASFLAGS	:=	-g $(ARCH) $(INCLUDE)
+ASFLAGS	:=	-g $(ARCH) $(INCLUDE) -DNP3D_DIAGNOSTIC=$(DIAGNOSTIC)
 LDFLAGS	=	-nostartfiles -T ../cardengine.ld -g $(ARCH) -Wl,-Map,$(TARGET).map
 
 LIBS	:= 
@@ -65,8 +70,10 @@ export VPATH	:=	$(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) \
 export DEPSDIR	:=	$(CURDIR)/$(BUILD)
 
 CFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
+CFILES		:=	$(filter-out debug_file.c hex.c nds_header.c trace.arm9.c,$(CFILES))
 CPPFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
 SFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
+SFILES		:=	$(filter-out trace_hooks.arm9.s,$(SFILES))
 BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.*)))
 
 #---------------------------------------------------------------------------------
