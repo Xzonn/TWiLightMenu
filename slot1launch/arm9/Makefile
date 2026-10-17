@@ -19,7 +19,7 @@ UNIVERSAL	:=	../../universal
 TARGET		:=	slot1launch
 BUILD		:=	build
 SOURCES		:=	source $(UNIVERSAL)/source/common $(UNIVERSAL)/source/tonccpy ../../../../source/arm9
-INCLUDES	:=	include source ../bootloader/source $(UNIVERSAL)/include
+INCLUDES	:=	include source ../bootloader/source $(UNIVERSAL)/include ../../../../vendor/uni-algo/include ../../../../vendor/ndstool/source ../../../../vendor/cJSON ../../../../vendor/fmt/include ../../../../vendor/miniz ../../../../source/patch
 DATA		:=	../data
 
 #---------------------------------------------------------------------------------
@@ -34,10 +34,13 @@ CFLAGS	:=	-g -Wall -O2\
 		$(ARCH)
 
 CFLAGS	+=	$(INCLUDE) -DARM9 -DSTANDALONE -D_NO_MAIN_ALL -DNP3D_DIAGNOSTIC=$(DIAGNOSTIC) -DNP3D_LAUNCH_TRACE=$(LAUNCH_TRACE)
+CFLAGS += -DNP3D_VERSION='"$(NP3D_VERSION)"'
+CFLAGS += -DFMT_EXCEPTIONS=0 -DFMT_USE_LOCALE=0
 CXXFLAGS	:= $(CFLAGS) -fno-exceptions -std=gnu++17
 
 ASFLAGS	:=	-g $(ARCH) $(INCLUDE)
 LDFLAGS	=	-specs=../$(UNIVERSAL)/arm9/ds_arm9_twlm.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
+LDFLAGS += -Wl,--section-start=.twl=0x02400000
 
 #---------------------------------------------------------------------------------
 # any extra libraries we wish to link with the project (order is important)

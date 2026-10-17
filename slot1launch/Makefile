@@ -30,9 +30,9 @@ dist:	all
 	@cp $(TARGET).arm7.elf ../7zfile/debug/$(TARGET).arm7.elf
 	@cp $(TARGET).arm9.elf ../7zfile/debug/$(TARGET).arm9.elf
 
-$(TARGET).nds:	$(TARGET).arm7 $(TARGET).arm9
+$(TARGET).nds:	$(TARGET).arm7 $(TARGET).arm9 ../../../assets/icon.bmp
 	ndstool	-c $(TARGET).nds -7 $(TARGET).arm7.elf -9 $(TARGET).arm9.elf \
-			-b $(CURDIR)/icon.bmp "NitroPatcher3DS;Game Card Launcher;Xzonn" \
+			-b $(CURDIR)/../../../assets/icon.bmp "NitroPatcher3DS;Game Card Launcher;Xzonn" \
 			-g NP3D 01 "NITROPATCHER" -z 80040000 -u 00030004
 
 $(TARGET).arm7	: arm7/$(TARGET).elf
