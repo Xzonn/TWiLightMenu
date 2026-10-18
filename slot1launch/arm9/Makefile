@@ -45,7 +45,7 @@ LDFLAGS += -Wl,--section-start=.twl=0x02400000
 #---------------------------------------------------------------------------------
 # any extra libraries we wish to link with the project (order is important)
 #---------------------------------------------------------------------------------
-LIBS	:= ../../../../../build/patch-arm9/libnp3d.a -L/opt/np3d/libiconv/lib -liconv -lcharset -lfat -lnds9
+LIBS	:= ../../../../../build/patch-arm9/libnp3d.a -L/opt/np3d/liblzma/lib -llzma -L/opt/np3d/libiconv/lib -liconv -lcharset -lfat -lnds9
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
