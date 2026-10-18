@@ -70,12 +70,15 @@ int main(void) {
 			if (fifoCheckValue32(FIFO_USER_07)) { TWL_ResetSlot1(); } else { PowerOnSlot(); }
 		}
 		fifoSendValue32(FIFO_USER_03, 1);
+	} else {
+		fifoSendValue32(FIFO_USER_05, 0);
+		fifoSendValue32(FIFO_USER_06, 0);
 	}
 	
 	while (1) {
 		if (fifoCheckValue32(FIFO_USER_08)) {
 			fifoGetValue32(FIFO_USER_08);
-			fifoSendValue32(FIFO_USER_08, TWL_ResetSlot1());
+			fifoSendValue32(FIFO_USER_08, isDSiMode() ? TWL_ResetSlot1() : 0);
 		}
 		swiWaitForVBlank();
 	}

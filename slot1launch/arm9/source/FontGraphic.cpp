@@ -91,6 +91,14 @@ char16_t FontGraphic::arabicForm(char16_t current, char16_t prev, char16_t next)
 
 FontGraphic::FontGraphic(const std::vector<u8> &data) {
 	file = fmemopen(const_cast<u8*>(data.data()), data.size(), "rb");
+	loadFont();
+}
+
+FontGraphic::FontGraphic(FILE* source) : file(source), useTileCache(true) {
+	loadFont();
+}
+
+void FontGraphic::loadFont() {
 	np3d::require(file, "Cannot open embedded NFTR font");
 
 	// Get file size
@@ -114,9 +122,10 @@ FontGraphic::FontGraphic(const std::vector<u8> &data) {
 	tileAmount = (chunkSize - 0x10) / tileSize;
 	tileBaseline = static_cast<s8>(fgetc(file));
 	fseek(file, 3, SEEK_CUR);
-	np3d::require(!useTileCache && tileWidth == 12 && tileHeight == 13 && tileSize == 39, "Expected a 12px, 2bpp NFTR font");
-	fontTiles = new u8[tileSize * tileAmount];
-	np3d::require(fread(fontTiles, tileSize, tileAmount, file) == size_t(tileAmount), "Cannot read NFTR glyphs");
+	np3d::require(tileWidth == 12 && tileHeight == 13 && tileSize == 39, "Expected a 12px, 2bpp NFTR font");
+	fontTiles = new u8[tileSize * (useTileCache ? tileCacheCount : tileAmount)];
+	if (!useTileCache)
+		np3d::require(fread(fontTiles, tileSize, tileAmount, file) == size_t(tileAmount), "Cannot read NFTR glyphs");
 
 	// Load character widths
 	fseek(file, 0x24, SEEK_SET);
@@ -174,8 +183,23 @@ FontGraphic::FontGraphic(const std::vector<u8> &data) {
 	questionMark = getCharIndex(0xFFFD);
 	if (questionMark == 0)
 		questionMark = getCharIndex('?');
-	np3d::require(fclose(file) == 0, "Cannot close embedded NFTR font");
-	file = nullptr;
+	if (!useTileCache) {
+		np3d::require(fclose(file) == 0, "Cannot close embedded NFTR font");
+		file = nullptr;
+	}
+}
+
+u16 FontGraphic::loadTile(u16 index) {
+	if (!useTileCache) return index;
+	for (unsigned i=0; i<tileCacheCount; i++)
+		if (cacheAllocated[i] && indexCache[i]==index) return i;
+	nextCachePos=(nextCachePos+1)%tileCacheCount;
+	u16 position=nextCachePos;
+	np3d::require(fseek(file,tileOffset+index*tileSize,SEEK_SET)==0
+		&& fread(fontTiles+position*tileSize,tileSize,1,file)==1,"Cannot read embedded NFTR glyph");
+	cacheAllocated[position]=true;
+	indexCache[position]=index;
+	return position;
 }
 
 FontGraphic::~FontGraphic(void) {
@@ -249,6 +273,7 @@ void FontGraphic::drawGlyph(u16* target, char16_t character, int x, int y, int l
 	u16 index = getCharIndex(character);
 	int bearing = static_cast<s8>(fontWidths[index * 3]);
 	int width = fontWidths[index * 3 + 1];
+	u16 tile = loadTile(index);
 	y += 10 - tileBaseline;
 	for (int row = 0; row < tileHeight; row++) {
 		if (y + row < 0 || y + row >= 192) continue;
@@ -256,7 +281,7 @@ void FontGraphic::drawGlyph(u16* target, char16_t character, int x, int y, int l
 			int position = x + bearing + column;
 			if (position < left || position >= right || position < 0 || position >= 256) continue;
 			int pixel = row * tileWidth + column;
-			if ((fontTiles[index * tileSize + pixel / 4] >> ((3 - pixel % 4) * 2)) & 3)
+			if ((fontTiles[tile * tileSize + pixel / 4] >> ((3 - pixel % 4) * 2)) & 3)
 				target[(y + row) * 256 + position] = color;
 		}
 	}

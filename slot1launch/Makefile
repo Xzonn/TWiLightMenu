@@ -12,6 +12,12 @@ include $(DEVKITARM)/ds_rules
 export TARGET		:=	slot1launch
 export TOPDIR		:=	$(CURDIR)
 export DIAGNOSTIC ?= 0
+export SLOT2 ?= 0
+ifeq ($(SLOT2),1)
+NITROFS_FLAGS := -d $(CURDIR)/../../../build/nitrofs
+else
+NITROFS_FLAGS := -z 80040000 -u 00030004
+endif
 
 export VERSION_MAJOR	:= 1
 export VERSION_MINOR	:= 99
@@ -33,7 +39,7 @@ dist:	all
 $(TARGET).nds:	$(TARGET).arm7 $(TARGET).arm9 ../../../assets/icon.bmp
 	ndstool	-c $(TARGET).nds -7 $(TARGET).arm7.elf -9 $(TARGET).arm9.elf \
 			-b $(CURDIR)/../../../assets/icon.bmp "NitroPatcher3DS;Game Card Launcher;Xzonn" \
-			-g NP3D 01 "NITROPATCHER" -z 80040000 -u 00030004
+			-g NP3D 01 "NITROPATCHER" $(NITROFS_FLAGS)
 
 $(TARGET).arm7	: arm7/$(TARGET).elf
 	cp arm7/$(TARGET).elf $(TARGET).arm7.elf

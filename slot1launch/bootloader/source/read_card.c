@@ -262,6 +262,8 @@ static void switchToTwlBlowfish(sNDSHeaderExt* ndsHeader) {
 int cardInit (sNDSHeaderExt* ndsHeader, u32* chipID)
 {
 	u32 portFlagsKey1, portFlagsSecRead;
+	twlBlowfish = false;
+	toncset(headerData, 0, sizeof(headerData));
 	normalChip = false;	// As defined by GBAtek, normal chip secure area is accessed in blocks of 0x200, other chip in blocks of 0x1000
 	int secureBlockNumber;
 	int i;

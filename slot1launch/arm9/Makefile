@@ -36,11 +36,15 @@ CFLAGS	:=	-g -Wall -O2\
 CFLAGS	+=	$(INCLUDE) -DARM9 -DSTANDALONE -D_NO_MAIN_ALL -DNP3D_DIAGNOSTIC=$(DIAGNOSTIC) -DNP3D_LAUNCH_TRACE=$(LAUNCH_TRACE)
 CFLAGS += -DNP3D_VERSION='"$(NP3D_VERSION)"'
 CFLAGS += -DFMT_EXCEPTIONS=0 -DFMT_USE_LOCALE=0
+CFLAGS += -DNP3D_SLOT2=$(SLOT2)
 CXXFLAGS	:= $(CFLAGS) -fno-exceptions -std=gnu++17
 
 ASFLAGS	:=	-g $(ARCH) $(INCLUDE)
 LDFLAGS	=	-specs=../$(UNIVERSAL)/arm9/ds_arm9_twlm.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 LDFLAGS += -Wl,--section-start=.twl=0x02400000
+ifeq ($(SLOT2),1)
+LDFLAGS = -specs=ds_arm9.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
+endif
 
 #---------------------------------------------------------------------------------
 # any extra libraries we wish to link with the project (order is important)
@@ -73,6 +77,9 @@ CPPFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
 CPPFILES	:=	$(filter-out main.cpp,$(CPPFILES))
 SFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
 BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.*)))
+ifeq ($(SLOT2),1)
+BINFILES := $(filter-out np3d_resources.twl.bin np3d_base_font.bin,$(BINFILES))
+endif
 
 #---------------------------------------------------------------------------------
 # use CXX for linking C++ projects, CC for standard C

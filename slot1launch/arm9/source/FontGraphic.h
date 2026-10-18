@@ -43,6 +43,8 @@ private:
 	u16 *fontMap = nullptr;
 
 	u16 getCharIndex(char16_t c);
+	void loadFont();
+	u16 loadTile(u16 index);
 
 public:
 	static u8 textBuf[256 * 192];
@@ -50,6 +52,7 @@ public:
 	static std::u16string utf8to16(std::string_view text);
 
 	FontGraphic(const std::vector<u8> &data);
+	FontGraphic(FILE* source);
 
 	~FontGraphic(void);
 
