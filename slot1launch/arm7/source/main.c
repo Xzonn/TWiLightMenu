@@ -22,6 +22,9 @@
 
 #include "resetslot.h"
 
+u8 my_i2cReadRegister(u8 device, u8 reg);
+u8 my_i2cWriteRegister(u8 device, u8 reg, u8 data);
+
 void VcountHandler() {
 	inputGetAndSend();
 }
@@ -50,6 +53,13 @@ int main(void) {
 	irqEnable( IRQ_VBLANK | IRQ_VCOUNT);
 	
 	if (isDSiMode()) {
+		u8 byteBak = my_i2cReadRegister(0x4A, 0x71);
+		my_i2cWriteRegister(0x4A, 0x71, 0xD2);
+		u8 byteNew = my_i2cReadRegister(0x4A, 0x71);
+		my_i2cWriteRegister(0x4A, 0x71, byteBak);
+		fifoSendValue32(FIFO_USER_05, byteNew != 0xD2 ? 2 : 0);
+		fifoSendValue32(FIFO_USER_06, REG_SCFG_EXT);
+
 		i2cWriteRegister(0x4A, 0x12, 0x00);		// Press power-button for auto-reset
 		i2cWriteRegister(0x4A, 0x70, 0x01);		// Bootflag = Warmboot/SkipHealthSafety
 
