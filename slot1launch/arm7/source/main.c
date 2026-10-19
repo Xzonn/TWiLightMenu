@@ -32,6 +32,14 @@ void VcountHandler() {
 void VblankHandler(void) {
 }
 
+static void unlaunchReboot(u32 value, void* data) {
+	(void)data;
+	if (value != 0x554E4C41) return;
+	my_i2cWriteRegister(0x4A, 0x12, my_i2cReadRegister(0x4A, 0x12) | 1);
+	my_i2cWriteRegister(0x4A, 0x70, 0x01);
+	my_i2cWriteRegister(0x4A, 0x11, 0x01);
+}
+
 int main(void) {
 
 	// read User Settings from firmware
@@ -53,6 +61,7 @@ int main(void) {
 	irqEnable( IRQ_VBLANK | IRQ_VCOUNT);
 	
 	if (isDSiMode()) {
+		fifoSetValue32Handler(FIFO_USER_04, unlaunchReboot, 0);
 		u8 byteBak = my_i2cReadRegister(0x4A, 0x71);
 		my_i2cWriteRegister(0x4A, 0x71, 0xD2);
 		u8 byteNew = my_i2cReadRegister(0x4A, 0x71);
