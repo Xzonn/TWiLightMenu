@@ -49,7 +49,7 @@ endif
 #---------------------------------------------------------------------------------
 # any extra libraries we wish to link with the project (order is important)
 #---------------------------------------------------------------------------------
-LIBS	:= ../../../../../build/patch-arm9/libnp3d.a -L/opt/np3d/liblzma/lib -llzma -L/opt/np3d/libiconv/lib -liconv -lcharset -lfat -lnds9
+LIBS	:= ../../../../../build/patch-arm9/libnp3d.a -L/opt/np3d/liblzma/lib -llzma -L/opt/np3d/libiconv/lib -liconv -lcharset $(NP3D_LIBFAT) -lnds9
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
@@ -129,7 +129,7 @@ DEPENDS	:=	$(OFILES:.o=.d)
 # 	@$(OBJCOPY) -O binary $< $@
 # 	@echo built ... $(notdir $@)
 
-$(ARM9ELF)	:	$(OFILES) $(CURDIR)/../../../../../build/patch-arm9/libnp3d.a
+$(ARM9ELF)	:	$(OFILES) $(CURDIR)/../../../../../build/patch-arm9/libnp3d.a $(NP3D_LIBFAT)
 	@echo linking $(notdir $@)
 	@$(LD)  $(LDFLAGS) $(OFILES) $(LIBPATHS) $(LIBS) -o $@
 
