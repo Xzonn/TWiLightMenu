@@ -473,13 +473,33 @@ void cardRead (u32 src, u32* dest, size_t size)
 	}
 
 	while (size > 0) {
-		readSize = size < CARD_DATA_BLOCK_SIZE ? size : CARD_DATA_BLOCK_SIZE;
-		cardParamCommand (CARD_CMD_DATA_READ, src,
-			portFlags | CARD_ACTIVATE | CARD_nRESET | CARD_BLK_SIZE(1),
-			readBuffer, CARD_DATA_BLOCK_SIZE/sizeof(u32));
-		tonccpy(dest, readBuffer, readSize);
+#ifdef ARM9
+		unsigned int blockSize = 4;
+		readSize = 0x1000;
+		while (readSize > CARD_DATA_BLOCK_SIZE && (readSize > size || readSize > 0x1000 - (src & 0xfff))) {
+			readSize >>= 1;
+			blockSize--;
+		}
+		if (((u32)dest & 31) == 0 && readSize <= size && readSize <= 0x1000 - (src & 0xfff)
+		 && (u32)dest >= 0x02000000 && (u32)dest + readSize <= 0x02ff0000) {
+			u8 command[8] = {0, 0, 0, src, src >> 8, src >> 16, src >> 24, CARD_CMD_DATA_READ};
+			DC_FlushRange(dest, readSize);
+			cardStartTransfer(command, dest, 0, portFlags | CARD_ACTIVATE | CARD_nRESET | CARD_BLK_SIZE(blockSize));
+			while (REG_ROMCTRL & CARD_BUSY);
+			DMA_CR(0) = 0;
+			DC_InvalidateRange(dest, readSize);
+		} else
+#endif
+		{
+			readSize = size < CARD_DATA_BLOCK_SIZE ? size : CARD_DATA_BLOCK_SIZE;
+			if (readSize > 0x1000 - (src & 0xfff)) readSize = 0x1000 - (src & 0xfff);
+			cardParamCommand (CARD_CMD_DATA_READ, src,
+				portFlags | CARD_ACTIVATE | CARD_nRESET | CARD_BLK_SIZE(1),
+				readBuffer, CARD_DATA_BLOCK_SIZE/sizeof(u32));
+			tonccpy(dest, readBuffer, readSize);
+		}
 		src += readSize;
-		dest += readSize/sizeof(*dest);
+		dest = (u32*)((u8*)dest + readSize);
 		size -= readSize;
 	}
 }
