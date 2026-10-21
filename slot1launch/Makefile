@@ -38,7 +38,7 @@ dist:	all
 
 $(TARGET).nds:	$(TARGET).arm7 $(TARGET).arm9 ../../../assets/icon.bmp
 	ndstool	-c $(TARGET).nds -7 $(TARGET).arm7.elf -9 $(TARGET).arm9.elf \
-			-b $(CURDIR)/../../../assets/icon.bmp "NitroPatcher3DS;Game Card Launcher;Xzonn" \
+			-b $(CURDIR)/../../../assets/icon.bmp "NitroPatcherDS;Game Card Launcher;Xzonn" \
 			-g NP3D 01 "NITROPATCHER" $(NITROFS_FLAGS)
 
 $(TARGET).arm7	: arm7/$(TARGET).elf
