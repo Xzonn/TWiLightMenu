@@ -13,10 +13,9 @@ export TARGET		:=	slot1launch
 export TOPDIR		:=	$(CURDIR)
 export DIAGNOSTIC ?= 0
 export SLOT2 ?= 0
-ifeq ($(SLOT2),1)
 NITROFS_FLAGS := -d $(CURDIR)/../../../build/nitrofs
-else
-NITROFS_FLAGS := -z 80040000 -u 00030004
+ifneq ($(SLOT2),1)
+NITROFS_FLAGS += -z 80040000 -u 00030004
 endif
 
 export VERSION_MAJOR	:= 1

@@ -40,34 +40,35 @@ void __attribute__ ((long_call)) __attribute__((naked)) __attribute__((noreturn)
 	REG_IPC_FIFO_CR = IPC_FIFO_ENABLE | IPC_FIFO_SEND_CLEAR;
 	REG_IPC_FIFO_CR = 0;
 
-	VRAM_CR = (VRAM_CR & 0xffff0000) | 0x00008080 ;
+	if (RESET_VIDEO_FLAG) {
+		VRAM_CR = (VRAM_CR & 0xffff0000) | 0x00008080 ;
 
-	for (vu16 *p = (vu16*)&REG_DISPCNT; p <= (vu16*)&REG_DISP_MMEM_FIFO; p++)
-	{
-		// Skip VCOUNT. Writing to it was setting it to 0 causing a frame to be
-		// misrendered. This can also have side effects on 3DS, even though the
-		// official TWL_FIRM can recover from it.
-		if (p != (vu16*)&REG_VCOUNT)
+		for (vu16 *p = (vu16*)&REG_DISPCNT; p <= (vu16*)&REG_DISP_MMEM_FIFO; p++)
+		{
+			// Skip VCOUNT. Writing to it was setting it to 0 causing a frame to be
+			// misrendered. This can also have side effects on 3DS, even though the
+			// official TWL_FIRM can recover from it.
+			if (p != (vu16*)&REG_VCOUNT)
+				*p = 0;
+		}
+		for (vu16 *p = (vu16*)&REG_DISPCNT_SUB; p <= (vu16*)0x04001068; p++)
+		{
 			*p = 0;
-	}
-	for (vu16 *p = (vu16*)&REG_DISPCNT_SUB; p <= (vu16*)0x04001068; p++)
-	{
-		*p = 0;
-	}
+		}
 
-	REG_DISPSTAT = 0;
-	GFX_STATUS = 0;
-
-	VRAM_A_CR = 0;
-	VRAM_B_CR = 0;
+		VRAM_A_CR = 0;
+		VRAM_B_CR = 0;
 // Don't mess with the ARM7's VRAM
 //	VRAM_C_CR = 0;
-	VRAM_D_CR = 0;
-	VRAM_E_CR = 0;
-	VRAM_F_CR = 0;
-	VRAM_G_CR = 0;
-	VRAM_H_CR = 0;
-	VRAM_I_CR = 0;
+		VRAM_D_CR = 0;
+		VRAM_E_CR = 0;
+		VRAM_F_CR = 0;
+		VRAM_G_CR = 0;
+		VRAM_H_CR = 0;
+		VRAM_I_CR = 0;
+	}
+	REG_DISPSTAT = 0;
+	GFX_STATUS = 0;
 	REG_POWERCNT  = 0x820F;
 
 	//set shared ram to ARM7

@@ -424,6 +424,7 @@ int main (void) {
 
 	// ARM9 clears its memory part 2
 	// copy ARM9 function to RAM, and make the ARM9 jump to it
+	RESET_VIDEO_FLAG = clearMasterBright;
 	copyLoop((void*)TEMP_MEM, (void*)resetMemory2_ARM9, resetMemory2_ARM9_size);
 	(*(vu32*)0x02FFFE24) = (u32)TEMP_MEM;	// Make ARM9 jump to the function
 	// Wait until the ARM9 has completed its task

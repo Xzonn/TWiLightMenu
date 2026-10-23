@@ -2,6 +2,7 @@
 #define _BOOT_H_
 
 #define resetMemory2_ARM9_size 0x400
+#define RESET_VIDEO_FLAG (*(vu32*)0x02FFD400)
 void __attribute__ ((long_call)) __attribute__((naked)) __attribute__((noreturn)) resetMemory2_ARM9();
 #define clearMasterBright_ARM9_size 0x200
 void __attribute__ ((long_call)) __attribute__((naked)) __attribute__((noreturn)) clearMasterBright_ARM9();

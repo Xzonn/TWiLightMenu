@@ -45,6 +45,7 @@ LDFLAGS += -Wl,--section-start=.twl=0x02400000
 ifeq ($(SLOT2),1)
 LDFLAGS = -specs=ds_arm9.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 endif
+LDFLAGS += -specs=../../../../../source/arm9/startup.specs
 
 #---------------------------------------------------------------------------------
 # any extra libraries we wish to link with the project (order is important)
@@ -77,9 +78,6 @@ CPPFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
 CPPFILES	:=	$(filter-out main.cpp,$(CPPFILES))
 SFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
 BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.*)))
-ifeq ($(SLOT2),1)
-BINFILES := $(filter-out np3d_resources.twl.bin np3d_base_font.bin,$(BINFILES))
-endif
 
 #---------------------------------------------------------------------------------
 # use CXX for linking C++ projects, CC for standard C
@@ -129,7 +127,7 @@ DEPENDS	:=	$(OFILES:.o=.d)
 # 	@$(OBJCOPY) -O binary $< $@
 # 	@echo built ... $(notdir $@)
 
-$(ARM9ELF)	:	$(OFILES) $(CURDIR)/../../../../../build/patch-arm9/libnp3d.a $(NP3D_LIBFAT)
+$(ARM9ELF)	:	$(OFILES) $(CURDIR)/../../../../../build/patch-arm9/libnp3d.a $(NP3D_LIBFAT) $(CURDIR)/../../../../../build/ds_arm9_crt0.o $(CURDIR)/../../../../../source/arm9/startup.specs
 	@echo linking $(notdir $@)
 	@$(LD)  $(LDFLAGS) $(OFILES) $(LIBPATHS) $(LIBS) -o $@
 
