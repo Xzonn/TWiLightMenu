@@ -41,6 +41,59 @@ static u32 portFlags = 0;
 static u32 headerData[0x1000/sizeof(u32)] = {0};
 static u32 secureArea[CARD_SECURE_AREA_SIZE/sizeof(u32)];
 
+#ifdef ARM9
+static size_t readBlockSize = CARD_DATA_BLOCK_SIZE;
+static u32 readProbe[2][0x1000/sizeof(u32)] __attribute__((aligned(32)));
+
+static void cardDmaRead(u32 src, u32* dest, size_t size, unsigned int blockSize)
+{
+	size_t step = 0x100u << blockSize;
+	u32 flags = portFlags | CARD_ACTIVATE | CARD_nRESET | CARD_BLK_SIZE(blockSize);
+	DC_FlushRange(dest, size);
+	for (size_t offset = 0; offset < size; offset += step) {
+		u32 address = src + offset;
+		u8 command[8] = {0, 0, 0, address, address >> 8, address >> 16, address >> 24, CARD_CMD_DATA_READ};
+		if (offset == 0) {
+			cardStartTransfer(command, dest, 0, flags);
+		} else {
+			cardWriteCommand(command);
+			REG_ROMCTRL = flags;
+		}
+		while (REG_ROMCTRL & CARD_BUSY);
+	}
+	DMA_CR(0) = 0;
+	DC_InvalidateRange(dest, size);
+}
+
+static void detectReadBlockSize(const sNDSHeaderExt* ndsHeader, u32 chipID)
+{
+	readBlockSize = CARD_DATA_BLOCK_SIZE;
+	if ((chipID & 0xff) == 0x80 || (chipID & 0x08000000)) return;
+	unsigned int samples = 0;
+	for (u32 address = CARD_DATA_OFFSET; address < CARD_DATA_OFFSET + 0x20000
+	 && address <= ndsHeader->romSize && ndsHeader->romSize - address >= sizeof(readProbe[0]); address += 0x1000) {
+		cardDmaRead(address, readProbe[0], sizeof(readProbe[0]), 1);
+		bool distinct = true;
+		for (unsigned int first = 0; first < 7 && distinct; first++) {
+			for (unsigned int second = first + 1; second < 8; second++) {
+				if (memcmp((u8*)readProbe[0] + first * CARD_DATA_BLOCK_SIZE,
+				 (u8*)readProbe[0] + second * CARD_DATA_BLOCK_SIZE, CARD_DATA_BLOCK_SIZE) == 0) {
+					distinct = false;
+					break;
+				}
+			}
+		}
+		if (!distinct) continue;
+		cardDmaRead(address, readProbe[1], sizeof(readProbe[1]), 4);
+		if (memcmp(readProbe[0], readProbe[1], sizeof(readProbe[0])) != 0) return;
+		if (++samples == 3) {
+			readBlockSize = 0x1000;
+			return;
+		}
+	}
+}
+#endif
+
 static const u8 cardSeedBytes[] = {0xE8, 0x4D, 0x5A, 0xB1, 0x17, 0x8F, 0x99, 0xD5};
 
 static u32 getRandomNumber(void) {
@@ -416,6 +469,9 @@ int cardInit (sNDSHeaderExt* ndsHeader, u32* chipID)
 		// return normalChip ? ERR_SEC_NORM : ERR_SEC_OTHR;
 	}
 
+#ifdef ARM9
+	detectReadBlockSize(ndsHeader, *chipID);
+#endif
 	return ERR_NONE;
 }
 
@@ -482,12 +538,8 @@ void cardRead (u32 src, u32* dest, size_t size)
 		}
 		if (((u32)dest & 31) == 0 && readSize <= size && readSize <= 0x1000 - (src & 0xfff)
 		 && (u32)dest >= 0x02000000 && (u32)dest + readSize <= 0x02ff0000) {
-			u8 command[8] = {0, 0, 0, src, src >> 8, src >> 16, src >> 24, CARD_CMD_DATA_READ};
-			DC_FlushRange(dest, readSize);
-			cardStartTransfer(command, dest, 0, portFlags | CARD_ACTIVATE | CARD_nRESET | CARD_BLK_SIZE(blockSize));
-			while (REG_ROMCTRL & CARD_BUSY);
-			DMA_CR(0) = 0;
-			DC_InvalidateRange(dest, readSize);
+			if (readBlockSize == CARD_DATA_BLOCK_SIZE) blockSize = 1;
+			cardDmaRead(src, dest, readSize, blockSize);
 		} else
 #endif
 		{
