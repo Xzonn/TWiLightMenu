@@ -18,8 +18,15 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <nds/arm9/dldi.h>
 #include "cheat.h"
+#include <algorithm>
+#include <cstdlib>
+#include <cstring>
+#include <memory>
+#ifdef CHEAT_DATA_ONLY
+#define tonccpy std::memcpy
+#else
+#include <nds/arm9/dldi.h>
 #include "common/twlmenusettings.h"
 #include "common/systemdetails.h"
 #include "common/stringtool.h"
@@ -42,6 +49,7 @@ extern bool dbox_showIcon;
 
 extern void updateBoxArt(void);
 extern void bgOperations(bool waitFrame);
+#endif
 
 CheatCodelist::~CheatCodelist(void) {}
 
@@ -64,6 +72,7 @@ static u32 crc32(const u8* p,size_t len)
   return crc;
 }
 
+#ifndef CHEAT_DATA_ONLY
 bool CheatCodelist::parse(const std::string& aFileName)
 {
   bool res=false;
@@ -88,6 +97,7 @@ bool CheatCodelist::parse(const std::string& aFileName)
   }
   return res;
 }
+#endif
 
 bool CheatCodelist::searchCheatData(FILE* aDat,u32 gamecode,u32 crc32,long& aPos,size_t& aSize)
 {
@@ -95,26 +105,30 @@ bool CheatCodelist::searchCheatData(FILE* aDat,u32 gamecode,u32 crc32,long& aPos
   aSize=0;
   const char* KHeader="R4 CheatCode";
   char header[12];
-  fread(header,12,1,aDat);
+  if (fseek(aDat,0,SEEK_SET)) return false;
+  if (fread(header,12,1,aDat)!=1) return false;
   if (strncmp(KHeader,header,12)) return false;
 
   sDatIndex idx,nidx;
 
-  fseek(aDat,0,SEEK_END);
+  if (fseek(aDat,0,SEEK_END)) return false;
   long fileSize=ftell(aDat);
+  if (fileSize<0x100+long(sizeof(sDatIndex))) return false;
 
   fseek(aDat,0x100,SEEK_SET);
-  fread(&nidx,sizeof(nidx),1,aDat);
+  if (fread(&nidx,sizeof(nidx),1,aDat)!=1) return false;
 
   bool done=false;
 
   while (!done)
   {
     tonccpy(&idx,&nidx,sizeof(idx));
-    fread(&nidx,sizeof(nidx),1,aDat);
+    if (fread(&nidx,sizeof(nidx),1,aDat)!=1) return false;
     if (gamecode==idx._gameCode&&crc32==idx._crc32)
     {
-      aSize=((nidx._offset)?nidx._offset:fileSize)-idx._offset;
+      u64 end=nidx._offset?nidx._offset:u64(fileSize);
+      if (idx._offset<0x100 || end<=idx._offset || end>u64(fileSize)) return false;
+      aSize=end-idx._offset;
       aPos=idx._offset;
       done=true;
     }
@@ -135,12 +149,22 @@ bool CheatCodelist::parseInternal(FILE* aDat,u32 gamecode,u32 crc32)
 
   // dbg_printf("record found: %d\n",dataSize);
 
-  char* buffer=(char*)malloc(dataSize);
-  if (!buffer) return false;
-  fread(buffer,dataSize,1,aDat);
+  std::unique_ptr<char,decltype(&free)> owner((char*)malloc(dataSize),free);
+  char* buffer=owner.get();
+  if (!buffer || fread(buffer,dataSize,1,aDat)!=1) return false;
+  auto contains=[&](const void* pointer,size_t bytes) {
+    uintptr_t address=(uintptr_t)pointer,first=(uintptr_t)buffer;
+    return address>=first && address-first<=dataSize && bytes<=dataSize-(address-first);
+  };
+  auto terminated=[&](const char* pointer) {
+    return contains(pointer,1) && memchr(pointer,0,dataSize-((uintptr_t)pointer-(uintptr_t)buffer));
+  };
   char* gameTitle=buffer;
+  if (!terminated(gameTitle)) return false;
+  _gameTitle=gameTitle;
 
-  u32* ccode=(u32*)(((u32)gameTitle+strlen(gameTitle)+4)&~3);
+  u32* ccode=(u32*)(((uintptr_t)gameTitle+strlen(gameTitle)+4)&~uintptr_t(3));
+  if (!contains(ccode,9*sizeof(u32))) return false;
   u32 cheatCount=*ccode;
   cheatCount&=0x0fffffff;
   ccode+=9;
@@ -148,6 +172,7 @@ bool CheatCodelist::parseInternal(FILE* aDat,u32 gamecode,u32 crc32)
   u32 cc=0;
   while (cc<cheatCount)
   {
+    if (!contains(ccode,sizeof(u32))) return false;
     u32 folderCount=1;
     char* folderName=NULL;
     char* folderNote=NULL;
@@ -157,20 +182,28 @@ bool CheatCodelist::parseInternal(FILE* aDat,u32 gamecode,u32 crc32)
       flagItem|=cCheatDatItem::EInFolder;
       if ((*ccode>>24)==0x11) flagItem|=cCheatDatItem::EOne;
       folderCount=*ccode&0x00ffffff;
-      folderName=(char*)((u32)ccode+4);
-      folderNote=(char*)((u32)folderName+strlen(folderName)+1);
+      folderName=(char*)((uintptr_t)ccode+4);
+      if (!terminated(folderName)) return false;
+      folderNote=(char*)((uintptr_t)folderName+strlen(folderName)+1);
+      if (!terminated(folderNote)) return false;
       _data.push_back(cCheatDatItem(folderName,folderNote,cCheatDatItem::EFolder));
       cc++;
-      ccode=(u32*)(((u32)folderName+strlen(folderName)+1+strlen(folderNote)+1+3)&~3);
+      if (folderCount>cheatCount-cc) return false;
+      ccode=(u32*)(((uintptr_t)folderName+strlen(folderName)+1+strlen(folderNote)+1+3)&~uintptr_t(3));
     }
 
     u32 selectValue=cCheatDatItem::ESelected;
     for (size_t ii=0;ii<folderCount;++ii)
     {
-      char* cheatName=(char*)((u32)ccode+4);
-      char* cheatNote=(char*)((u32)cheatName+strlen(cheatName)+1);
-      u32* cheatData=(u32*)(((u32)cheatNote+strlen(cheatNote)+1+3)&~3);
+      if (!contains(ccode,sizeof(u32))) return false;
+      char* cheatName=(char*)((uintptr_t)ccode+4);
+      if (!terminated(cheatName)) return false;
+      char* cheatNote=(char*)((uintptr_t)cheatName+strlen(cheatName)+1);
+      if (!terminated(cheatNote)) return false;
+      u32* cheatData=(u32*)(((uintptr_t)cheatNote+strlen(cheatNote)+1+3)&~uintptr_t(3));
+      if (!contains(cheatData,sizeof(u32))) return false;
       u32 cheatDataLen=*cheatData++;
+      if (cheatDataLen>dataSize/sizeof(u32) || !contains(cheatData,size_t(cheatDataLen)*sizeof(u32))) return false;
 
       if (cheatDataLen)
       {
@@ -180,11 +213,12 @@ bool CheatCodelist::parseInternal(FILE* aDat,u32 gamecode,u32 crc32)
         tonccpy(_data.back()._cheat.data(),cheatData,cheatDataLen*4);
       }
       cc++;
-      ccode=(u32*)((u32)ccode+(((*ccode&0x00ffffff)+1)*4));
+      ccode=(u32*)((uintptr_t)ccode+(((*ccode&0x00ffffff)+1)*4));
     }
   }
-  free(buffer);
+#ifndef CHEAT_DATA_ONLY
   generateList();
+#endif
   return true;
 }
 
@@ -205,7 +239,7 @@ void CheatCodelist::generateList(void)
     ++itr;
     if ((flags&cCheatDatItem::EFolder)&&(flags&cCheatDatItem::EOpen)==0)
     {
-      while (((*itr)._flags&cCheatDatItem::EInFolder)&&itr!=_data.end()) ++itr;
+      while (itr!=_data.end()&&((*itr)._flags&cCheatDatItem::EInFolder)) ++itr;
     }
   }
 }
@@ -213,19 +247,29 @@ void CheatCodelist::generateList(void)
 void CheatCodelist::deselectFolder(size_t anIndex)
 {
   std::vector<cCheatDatItem>::iterator itr=_data.begin()+anIndex;
-  while (--itr>=_data.begin())
+  while (itr!=_data.begin())
   {
+    --itr;
     if ((*itr)._flags&cCheatDatItem::EFolder)
     {
       ++itr;
       break;
     }
   }
-  while (((*itr)._flags&cCheatDatItem::EInFolder)&&itr!=_data.end())
+  while (itr!=_data.end()&&((*itr)._flags&cCheatDatItem::EInFolder))
   {
     (*itr)._flags&=~cCheatDatItem::ESelected;
     ++itr;
   }
+}
+
+void CheatCodelist::setSelected(size_t index, bool selected)
+{
+  auto& cheat=_data.at(index);
+  if (cheat._flags&cCheatDatItem::EFolder) return;
+  if (selected && (cheat._flags&cCheatDatItem::EOne)) deselectFolder(index);
+  if (selected) cheat._flags|=cCheatDatItem::ESelected;
+  else cheat._flags&=~cCheatDatItem::ESelected;
 }
 
 bool CheatCodelist::romData(const std::string& aFileName,u32& aGameCode,u32& aCrc32)
@@ -249,7 +293,7 @@ bool CheatCodelist::romData(const std::string& aFileName,u32& aGameCode,u32& aCr
 std::vector<u32> CheatCodelist::getCheats()
 {
   std::vector<u32> cheats;
-  for (uint i=0;i<_data.size();i++)
+  for (size_t i=0;i<_data.size();i++)
   {
     if (_data[i]._flags&cCheatDatItem::ESelected)
     {
@@ -261,7 +305,7 @@ std::vector<u32> CheatCodelist::getCheats()
 
 std::vector<cCheatDatItem> CheatCodelist::getCheatsAlt() {
     std::vector<cCheatDatItem> cheats;
-    for (uint i = 0; i < _data.size(); i++) {
+    for (size_t i = 0; i < _data.size(); i++) {
         if (_data[i]._flags & cCheatDatItem::ESelected) {
             cheats.push_back(_data[i]);
         }
@@ -269,6 +313,7 @@ std::vector<cCheatDatItem> CheatCodelist::getCheatsAlt() {
     return cheats;
 }
 
+#ifndef CHEAT_DATA_ONLY
 void CheatCodelist::drawCheatList(std::vector<cCheatDatItem *>& list, uint curPos, uint screenPos, uint scrollPos) {
   // Print Cheats at the top
   printLarge(false, 0, 30, STR_CHEATS, Alignment::center, FontPalette::dialog);
@@ -643,6 +688,8 @@ void CheatCodelist::onGenerate(void)
     fclose(db);
   }
 }
+
+#endif
 
 void CheatCodelist::writeCheatsToFile(const char *path) {
   FILE *file = fopen(path, "wb");

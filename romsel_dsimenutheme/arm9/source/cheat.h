@@ -4,7 +4,15 @@
 
 #include <string>
 #include <vector>
+#include <cstdio>
+#include <cstdint>
+#ifdef CHEAT_DATA_ONLY
+using u8 = uint8_t;
+using u32 = uint32_t;
+using u64 = uint64_t;
+#else
 #include <nds.h>
+#endif
 
 class cCheatDatItem {
   public:
@@ -33,6 +41,10 @@ public:
 
   bool parseInternal(FILE* aDat,u32 gamecode,u32 crc32);
 
+  const std::vector<cCheatDatItem>& items() const { return _data; }
+  const std::string& gameTitle() const { return _gameTitle; }
+  void setSelected(size_t index, bool selected);
+
   void generateList(void);
 
   void deselectFolder(size_t anIndex);
@@ -54,6 +66,7 @@ public:
 	};
   private:
 	std::vector<cCheatDatItem> _data;
+	std::string _gameTitle;
 	std::vector<size_t> _indexes;
   public:
 	std::vector<u32> getCheats();
@@ -65,7 +78,7 @@ private:
 
   std::string nextToken (FILE* fp, TOKEN_TYPE& tokenType);
 
-  void drawCheatList(std::vector<cCheatDatItem *>& list, uint curPos, uint screenPos, uint scrollPos);
+  void drawCheatList(std::vector<cCheatDatItem *>& list, unsigned int curPos, unsigned int screenPos, unsigned int scrollPos);
 };
 
 #endif // CHEAT_H
