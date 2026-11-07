@@ -60,8 +60,6 @@ bool launcherListIfHolds(const CustomLauncher &launcher, const LaunchEnv &env)
 		return false;
 	if ((listIf & LAUNCHER_LIST_IF_DSTWO) && !env.dldiIsDstwo)
 		return false;
-	if ((listIf & LAUNCHER_LIST_IF_PICODRIVE) && env.mdEmulator != 2)
-		return false;
 	return true;
 }
 
@@ -88,11 +86,11 @@ static const LauncherBinary &jEnesisBinary(const CustomLauncher &launcher, const
 }
 
 // genesis: PicoDrive TWL (LAUNCHER_PATH_PICO) is forced by a locked SCFG in DSi mode, chosen
-// in Settings, or picked by the Hybrid setting for ROMs over 3 MB for flashcards, or 4 MB for DSi/3DS SD card
+// in Settings, or picked by the Hybrid setting for ROMs over 3 or 4 MB for flashcards, or 7.5 MB for DSi/3DS SD card
 static bool genesisUsesPicoDrive(const LaunchEnv &env, const std::string &romPath)
 {
 	return env.mdEmulator == 2
-		|| (env.mdEmulator == 3 && env.fileSize && env.fileSize(romPath.c_str()) > (env.secondaryDevice ? 0x300000 : 0x780000));
+		|| (env.mdEmulator == 3 && env.fileSize && env.fileSize(romPath.c_str()) > (env.secondaryDevice ? (env.dsDebugRam ? 0x400000 : 0x300000) : 0x780000));
 }
 
 // gba: Settings' native GBA mode with a Slot-2 RAM or NOR cart inserted
@@ -139,9 +137,9 @@ bool launcherAvailable(const CustomLauncher &launcher, const LaunchEnv &env)
 		case LauncherHandler::Pce:
 			return launcher.binary.exists();
 		case LauncherHandler::Snes:
-			if (env.newSnesEmuVer)
-				return launcher.binary.exists() || variantExists(launcher, "TWL");
-			return variantExists(launcher, "LEGACY") || (env.secondaryDevice && variantExists(launcher, "LEGACY_TWLM"));
+			if (!env.dsiFeatures || !env.arm7SCFGLocked)
+				return launcher.binary.exists();
+			return variantExists(launcher, "LEGACY") || variantExists(launcher, "LEGACY_TWLM");
 		case LauncherHandler::Genesis:
 			// The ROM size isn't known here, so Hybrid needs either emulator
 			if (env.mdEmulator == 2)
@@ -302,14 +300,6 @@ static void planBootstrapHb(LaunchPlan &plan, const LauncherBinary &emulator, co
 	plan.ok = true;
 }
 
-// NitroGrafx: directly
-static void planPce(LaunchPlan &plan, const CustomLauncher &launcher, const LaunchEnv &env, const LaunchRequest &request)
-{
-	bool onFat;
-	plan.ndsToBoot = resolveSdFirst(launcher.binary, env, onFat);
-	finishDirectPlan(plan, launcher, env, request, onFat);
-}
-
 // SNEmulDS, one of three ways:
 // - Settings' new SNES emulator: the TGDS build (LAUNCHER_PATH_TWL) from sd: in DSi mode,
 //   otherwise LAUNCHER_PATH from fat:, booted through TGDS multiboot as fat:/SNEmulDS.srl
@@ -317,21 +307,10 @@ static void planPce(LaunchPlan &plan, const CustomLauncher &launcher, const Laun
 // - ROM on SD: the legacy build through nds-bootstrap-hb with the ROM in RAM
 static void planSnes(LaunchPlan &plan, const CustomLauncher &launcher, const LaunchEnv &env, const LaunchRequest &request)
 {
-	if (env.newSnesEmuVer) {
-		const LauncherBinary *twl = launcher.variant("TWL");
-		const bool onSd = (env.isDSiMode && twl && twl->onSd);
-		plan.ndsToBoot = onSd ? twl->on("sd:") : launcher.binary.on("fat:");
-		plan.tgdsMode = true;
-		plan.tscTgds = true;
-		plan.argv0 = "fat:/SNEmulDS.srl";
-		plan.boostCpu = true;
-		plan.boostVram = plan.dsModeSwitch = (!onSd && env.secondaryDevice);
-		for (const std::string &arg : request.prefixArgs)
-			plan.args.push_back(arg);
-		plan.args.push_back(plan.romPathFat);	// TGDS only reaches the ROM through fat:
-		plan.homebrewArg = plan.romPath;
-		plan.launchType = LAUNCH_TYPE_CUSTOM;
-		plan.ok = true;
+	if (!env.dsiFeatures || !env.arm7SCFGLocked) {
+		bool onFat;
+		plan.ndsToBoot = resolveSdFirst(launcher.binary, env, onFat);
+		finishDirectPlan(plan, launcher, env, request, onFat);
 	} else if (env.secondaryDevice) {
 		const LauncherBinary *legacy = launcher.variant((request.romFolder == "fat:/roms/snes") ? "LEGACY_TWLM" : "LEGACY");
 		if (!legacy)
@@ -448,7 +427,7 @@ LaunchPrecheck launcherPrecheck(const CustomLauncher *launcher, const LaunchEnv 
 				return LaunchPrecheck::GbaBios;
 			break;
 		case LauncherHandler::Genesis:
-			if (env.mdEmulator == 1 && env.fileSize && env.fileSize(romPath.c_str()) > (env.secondaryDevice ? 0x300000 : 0x780000))
+			if (env.mdEmulator == 1 && env.fileSize && env.fileSize(romPath.c_str()) > (env.secondaryDevice ? (env.dsDebugRam ? 0x400000 : 0x300000) : 0x780000))
 				return LaunchPrecheck::MdRomTooBig;
 			break;
 		default:
@@ -481,9 +460,6 @@ LaunchPlan planLaunch(const CustomLauncher &launcher, const LaunchEnv &env, cons
 			break;
 		case LauncherHandler::DstwoPlugin:
 			planDstwoPlugin(plan, launcher, env, request);
-			break;
-		case LauncherHandler::Pce:
-			planPce(plan, launcher, env, request);
 			break;
 		case LauncherHandler::Snes:
 			planSnes(plan, launcher, env, request);

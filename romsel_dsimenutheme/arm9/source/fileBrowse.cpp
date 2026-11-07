@@ -1095,16 +1095,20 @@ void launchDownloadPlay(const vector<DirEntry>& dirContents) {
 
 		const char *bootstrapinipath = (sys().isRunFromSD() ? BOOTSTRAP_INI : BOOTSTRAP_INI_FC);
 		CIniFile bootstrapini(bootstrapinipath);
+		const bool dlplayDsiMode = ms().dlplayDsiMode && dsiFeatures() && !bs().b4dsMode;
 		bootstrapini.SetString("NDS-BOOTSTRAP", "NDS_PATH", bootPath);
+		bootstrapini.SetString("NDS-BOOTSTRAP", "APP_PATH", "");
 		bootstrapini.SetString("NDS-BOOTSTRAP", "SAV_PATH", "");
+		bootstrapini.SetString("NDS-BOOTSTRAP", "PRV_PATH", "");
 		bootstrapini.SetString("NDS-BOOTSTRAP", "HOMEBREW_ARG", "");
 		bootstrapini.SetString("NDS-BOOTSTRAP", "RAM_DRIVE_PATH", "");
 		bootstrapini.SetString("NDS-BOOTSTRAP", "QUIT_PATH", mainSrldrPath(sys().isRunFromSD() && (!ms().secondaryDevice || !bs().b4dsMode)));
 		bootstrapini.SetString("NDS-BOOTSTRAP", "GUI_LANGUAGE", ms().getGuiLanguageString());
 		bootstrapini.SetInt("NDS-BOOTSTRAP", "LANGUAGE", ms().gameLanguage);
-		bootstrapini.SetInt("NDS-BOOTSTRAP", "DSI_MODE", 0);
-		bootstrapini.SetInt("NDS-BOOTSTRAP", "BOOST_CPU", 0);
-		bootstrapini.SetInt("NDS-BOOTSTRAP", "BOOST_VRAM", 0);
+		// Download Play has a DS header (unit code 0), so nds-bootstrap only accepts forced DSi mode
+		bootstrapini.SetInt("NDS-BOOTSTRAP", "DSI_MODE", dlplayDsiMode ? 2 : 0);
+		bootstrapini.SetInt("NDS-BOOTSTRAP", "BOOST_CPU", dlplayDsiMode);
+		bootstrapini.SetInt("NDS-BOOTSTRAP", "BOOST_VRAM", dlplayDsiMode);
 		bootstrapini.SetInt("NDS-BOOTSTRAP", "REMAPPED_KEY_A", 0);
 		bootstrapini.SetInt("NDS-BOOTSTRAP", "REMAPPED_KEY_B", 1);
 		bootstrapini.SetInt("NDS-BOOTSTRAP", "REMAPPED_KEY_SELECT", 2);
@@ -1669,7 +1673,7 @@ void mdRomTooBig(void) {
 		while (!dboxStopped) { bgOperations(true); }
 	}
 	char text[128];
-	snprintf(text, sizeof(text), STR_MD_ROM_TOO_BIG.c_str(), ms().secondaryDevice ? "3" : "7.5");
+	snprintf(text, sizeof(text), STR_MD_ROM_TOO_BIG.c_str(), ms().secondaryDevice ? (sys().dsDebugRam() ? "4" : "3") : "7.5");
 	printSmall(false, 0, 64, text, Alignment::center, FontPalette::dialog);
 	printSmall(false, 0, 160, STR_A_OK, Alignment::center, FontPalette::dialog);
 	updateText(false);
