@@ -94,6 +94,13 @@ TWiLight Menu++ is composed of multiple "sub-projects" which all work together t
 
 You can help translate TWiLight Menu++ on the [Crowdin project](https://crowdin.com/project/TwilightMenu). If you'd like to request a new language be added then please ask on the [Discord server](https://ds-homebrew.com/discord).
 
+# AI Disclosure
+
+As of October 26th, 2026, some contibutors have implemented new improvements and bug fixes with AI assistance.     
+Code has been reviewed and tested by the contributors before merging the PRs into this project.
+
+A majority of **TW**i**L**ight Menu++ will remain human-made, as we have [AI usage guidelines](https://github.com/DS-Homebrew/TWiLightMenu/blob/master/AI-GUIDELINES.md) in place to make sure of this.
+
 # Credits
 ## Main Developers
 - [Rocket Robz](https://github.com/RocketRobz): Lead Developer
